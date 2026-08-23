@@ -4,6 +4,14 @@ on: [push, pull_request]
 # NO CREDENTIAL. This pipeline reaches nothing outside its own checkout and ordinary dependency
 # resolution — `papeete-actor-synchronous-messaging` is consumed at a pin, never re-authored here.
 #
+# --no-sources, DELIBERATELY. `pyproject.toml`'s `[tool.uv.sources]` points
+# `papeete-actor-synchronous-messaging` at an editable-local sibling checkout — the right
+# default for this workspace's own dev layout, but a single-repo CI checkout has no sibling to
+# find there. `--no-sources` makes `uv run` resolve the STANDARDS-COMPLIANT, publishable
+# metadata instead (the plain `>=0.1.0` PyPI constraint), which is also the more honest gate:
+# it fails here, loudly, exactly when the pinned dependency isn't actually installable from
+# PyPI — rather than silently passing against a local checkout only this workspace has.
+#
 # THE DOCKER EXAMPLES ARE NOT GATED HERE. `examples/build-wheels.sh` sources its wheels from
 # sibling checkouts (`../papeete-actor`, `../papeete-actor-message`,
 # `../papeete-actor-synchronous-messaging`) that only exist in this workspace's own dev layout,
@@ -19,7 +27,7 @@ jobs:
 
       - name: the gate suite
         # Real sockets, real JSON, no mock — `HttpMailbox` proven over TCP.
-        run: uv run --extra dev pytest -q
+        run: uv run --no-sources --extra dev pytest -q
 
       - name: build
         run: uv build
