@@ -31,7 +31,7 @@ wheels = [
 
 [[package]]
 name = "papeete-actor"
-version = "0.2.0"
+version = "1.0.0"
 source = { editable = "../papeete-actor" }
 dependencies = [
     { name = "papeete-version" },
@@ -63,7 +63,7 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "papeete-actor-synchronous-messaging"
-version = "0.1.0"
+version = "0.1.1"
 source = { editable = "../papeete-actor-synchronous-messaging" }
 dependencies = [
     { name = "papeete-actor" },
