@@ -69,6 +69,57 @@ uv run --extra dev pytest
 No Docker, no k8s — two `Actor`s, each on its own `HttpMailbox`, each `serve_forever()`ing
 in a background thread on `127.0.0.1`. Real sockets, real JSON, no mock.
 
+## Releasing
+
+Tag-triggered, via [PyPI Trusted Publishing](https://docs.pypi.org/trusted-publishers/) (OIDC).
+**No API token is stored anywhere** — GitHub mints a short-lived OIDC token per run and PyPI
+trades it for an upload token. There is nothing to rotate and nothing to leak.
+
+```bash
+git tag v0.1.0 && git push origin v0.1.0     # .github/workflows/release.yml does the rest
+```
+
+### One-time setup
+
+**1. A pending publisher on PyPI** — the project does not exist yet, so it is registered from
+the publisher side rather than by a first manual upload. At
+<https://pypi.org/manage/account/publishing/>, as a **GitHub** pending publisher:
+
+| Field | Value |
+|---|---|
+| PyPI Project Name | `papeete-actor-synchronous-messaging-http` |
+| Owner | `papeete-hub` |
+| Repository name | `papeete-actor-synchronous-messaging-http` |
+| Workflow name | `release.yml` |
+| Environment name | `pypi` |
+
+All five must match exactly — PyPI checks the OIDC claims against them and rejects the upload
+otherwise. `release.yml` already declares `permissions: id-token: write` and
+`environment: pypi`, which is what makes those claims present.
+
+**2. The `pypi` GitHub environment** ✅ *created*. No secrets in it — it exists so the OIDC claim
+carries an environment name for PyPI to match. Protection rules are **not** set and are worth
+considering, because a release is irreversible: PyPI never allows re-uploading a version, even
+after a delete. Required reviewers, and restricting deployments to tags matching `v*`, are the
+two that earn their keep.
+
+After the first successful release PyPI converts the pending publisher into a normal one
+automatically; there is no second setup step.
+
+**Blocked on a sibling, for now.** This package's own `pyproject.toml` pins
+`papeete-actor-synchronous-messaging>=0.1.0`, which is not yet installable from PyPI under that
+name — its own release lane's last run failed
+(see that repo's own Actions history). `release.yml`'s build step resolves dependencies from
+PyPI, not from this workspace's editable-local sibling checkout, so tagging and pushing here
+will fail at `uv build`/install until that package publishes successfully first.
+
+### What a release asserts
+
+The workflow builds, installs the wheel into a clean venv, and imports `HttpMailbox` from it
+before publishing — so a build that can't actually be imported fails the release instead of
+shipping a package nobody can use. It then re-installs the exact version just published, from
+PyPI itself, polling for CDN propagation rather than trusting the upload step's own exit code.
+
 ## Licence
 
 MIT.

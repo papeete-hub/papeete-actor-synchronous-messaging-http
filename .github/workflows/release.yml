@@ -1,0 +1,62 @@
+name: release
+on:
+  push:
+    tags: ["v*"]
+
+# PyPI Trusted Publishing (OIDC) — no token is stored anywhere. GitHub mints a short-lived
+# token per run and PyPI trades it for an upload token; there is nothing to rotate and nothing
+# to leak. The one-time setup is a pending publisher on pypi.org naming this repo and this
+# workflow; after the first release it becomes a normal publisher. See README.
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: pypi
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+
+      - name: build
+        # No fetch step and no external token: a release depends on nothing but this checkout,
+        # `papeete-actor-synchronous-messaging` resolved from PyPI at the pin `pyproject.toml`
+        # already declares, and PyPI itself.
+        run: uv build
+
+      - name: the wheel must actually import
+        # PyPI never allows re-uploading a version, so this assertion has to happen before the
+        # upload and not after it.
+        run: |
+          uv venv /tmp/probe
+          uv pip install --python /tmp/probe/bin/python -q dist/*.whl
+          /tmp/probe/bin/python -c "from papeete_actor_synchronous_messaging_http.mailbox import HttpMailbox; HttpMailbox()"
+
+      - name: publish to PyPI
+        run: uv publish --trusted-publishing always
+
+      - name: the exact version just published, pulled back from PyPI itself
+        # Every step above ran the wheel FROM dist/ — this repo's own checkout. That proves
+        # nothing about what a stranger gets: `uv publish` returning does not mean the file has
+        # propagated through PyPI's CDN yet, so this polls for it rather than trusting the first
+        # try. Pinned to the exact version this run built (read from pyproject.toml, the source
+        # `uv build` used — not the tag, which is a human's promise the two agree), so a
+        # mismatched tag fails HERE, loudly, instead of shipping silently under the wrong number.
+        run: |
+          VERSION=$(python3 -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+          uv venv /tmp/released
+          ok=false
+          for i in $(seq 1 10); do
+            if uv pip install --python /tmp/released/bin/python -q "papeete-actor-synchronous-messaging-http==$VERSION"; then
+              ok=true
+              break
+            fi
+            echo "papeete-actor-synchronous-messaging-http==$VERSION not indexed yet (attempt $i/10) — retrying in 10s"
+            sleep 10
+          done
+          if [ "$ok" != true ]; then
+            echo "::error title=published version never became installable::papeete-actor-synchronous-messaging-http==$VERSION did not resolve from PyPI within the retry window. The upload step reported success, but nobody can 'pip install' this release."
+            exit 1
+          fi
+          /tmp/released/bin/python -c "from papeete_actor_synchronous_messaging_http.mailbox import HttpMailbox; HttpMailbox()"
