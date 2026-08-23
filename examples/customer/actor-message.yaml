@@ -1,0 +1,14 @@
+message: papeete-actor-message/v0
+
+messages:
+  - name: confirm-substitution
+    intent: Decide whether a proposed substitute dish is acceptable.
+    references:
+      - original_dish
+      - substitute_dish
+
+  - name: substitution-decision
+    intent: Ask for and report what was decided about a proposed substitution.
+    references:
+      - substitution_id
+      - substitution_state

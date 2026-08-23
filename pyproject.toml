@@ -1,0 +1,40 @@
+[project]
+name = "papeete-actor-synchronous-messaging-http"
+version = "0.1.0"
+description = "An HTTP binding for papeete-actor-synchronous-messaging — a Mailbox adapter, deployable as a real service."
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [{ name = "Papeete Consulting", email = "yoann.remy@outlook.com" }]
+license = "MIT"
+keywords = ["agents", "actor-model", "http", "kubernetes"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3.11",
+  "Topic :: Software Development :: Libraries :: Application Frameworks",
+]
+
+# ONE DEPENDENCY. `Mailbox` (mailbox.py, this package's whole surface) implements the port
+# `papeete-actor-synchronous-messaging` already declares (`Mailbox` in its own `mailbox.py`) —
+# nothing here re-authors the membrane, the card contract, or `Actor` itself. Stdlib only
+# beyond that: `http.server` and `urllib.request`, the same choice every small HTTP actor in
+# this ecosystem already makes (`papeete-actor`'s `car-inspector`, `papeete-deploy`'s own
+# customer/waiter demo) — no framework to keep current, no framework to explain to a reader.
+dependencies = ["papeete-actor-synchronous-messaging>=0.1.0"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[tool.uv.sources]
+# LOCAL-ONLY, FOR DEV AND TEST — not yet published anywhere a plain version pin could resolve.
+papeete-actor-synchronous-messaging = { path = "../papeete-actor-synchronous-messaging", editable = true }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/papeete_actor_synchronous_messaging_http"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

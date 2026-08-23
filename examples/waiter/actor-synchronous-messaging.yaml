@@ -1,0 +1,21 @@
+manifest: synchronous-messaging-doors/v0
+# ── the doors: what I can be asked to do ────────────────────────────────
+# ONE OF EACH, and that pairing is not decoration. `take-order` promises to try; without a
+# query door beside it, nobody could ever ask what became of the attempt.
+actions:
+  - id: give-table
+    means: >-
+      the door for "seat me at a table". Send it here with a table number, and I will seat you.
+    completion: whether I seated you, and at which table.
+  - id: take-order
+    means: >-
+      the door for "seat me and take my order". Send it here with a table number and what was
+      asked for, and I write it into my own order book. NOT the door for a complaint about food
+      already served — that belongs wherever this restaurant records engineering debt, not here.
+    completion: whether I took the order, and the order id to ask about it later.
+queries:
+  - id: order-status
+    means: >-
+      ask what became of an order, quoting its id as `about`, or ask what my order book holds
+      overall. I answer from my own records and invent nothing.
+    completion: what I recorded, or that I hold nothing under the id you gave.

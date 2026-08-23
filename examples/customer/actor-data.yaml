@@ -1,0 +1,19 @@
+data: papeete-actor-data/v0
+
+items:
+  - name: original_dish
+    type: string
+    description: The dish the kitchen can no longer serve.
+
+  - name: substitute_dish
+    type: string
+    description: What the waiter is offering instead.
+
+  - name: substitution_id
+    type: string
+    description: The unique identifier assigned to a proposed substitution.
+
+  - name: substitution_state
+    type: enum
+    values: [resolved, rejected, pending, unknown]
+    description: The current lifecycle state of a substitution decision.

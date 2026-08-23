@@ -1,0 +1,19 @@
+message: papeete-actor-message/v0
+
+messages:
+  - name: give-table
+    intent: Seat a party at a table.
+    references:
+      - table_number
+
+  - name: take-order
+    intent: Register what a customer wants to order, and where.
+    references:
+      - table_number
+      - dish
+
+  - name: order-status
+    intent: Ask for and report the current state of a previously placed order.
+    references:
+      - order_id
+      - order_state

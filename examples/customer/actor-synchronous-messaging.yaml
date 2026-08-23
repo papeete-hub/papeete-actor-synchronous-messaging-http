@@ -1,0 +1,14 @@
+manifest: synchronous-messaging-doors/v0
+actions:
+  - id: confirm-substitution
+    means: >-
+      the door for "the kitchen ran out of what you ordered — will a substitute do?". Send it
+      here with what ran out and what is offered instead. I decide, and my decision is
+      discovered through `substitution-decision`.
+    completion: whether I accept the substitute, and what I asked the Waiter to change.
+queries:
+  - id: substitution-decision
+    means: >-
+      ask what I decided about a substitution, or what my own records hold overall. I answer
+      from my own records — including what the Waiter told me while I decided.
+    completion: what I recorded.

@@ -1,0 +1,4 @@
+manifest: papeete-actor-manifest/v0
+name: Customer
+description: >-
+  Decides on substitutions the Waiter proposes, and answers what it decided.
