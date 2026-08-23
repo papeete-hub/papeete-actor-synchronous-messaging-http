@@ -7,5 +7,9 @@ WORKDIR /app
 COPY wheels/*.whl /tmp/wheels/
 RUN pip install --no-cache-dir /tmp/wheels/*.whl && rm -rf /tmp/wheels
 COPY actor.yaml actor-data.yaml actor-message.yaml actor-synchronous-messaging.yaml app.py order_book.py ./
+# STATIC, BAKED AT BUILD TIME — not a live GET /card (ADR-PASH-0001 still holds: no runtime
+# discovery door). `describe` composes the four card files exactly once, here; `app.py` only
+# ever serves this file's bytes back verbatim, never recomputes them per request.
+RUN papeete-actor-synchronous-messaging describe . > card.yaml
 EXPOSE 8080
 CMD ["python", "app.py"]

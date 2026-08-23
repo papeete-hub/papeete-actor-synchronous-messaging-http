@@ -9,9 +9,17 @@ Nothing here is protocol; it is the operator's window onto a conversation the me
 one layer down. `"Waiter"` and its door ids (`take-order`, `order-status`) are this file's own
 business knowledge, the same way `decide.py` already knows them — nothing here resolves or
 gates that coupling.
+
+`GET /card` IS NOT A LIVE DISCOVERY DOOR EITHER. `ADR-PASH-0001` still holds — no runtime
+endpoint recomputes another actor's doors on demand. `card.yaml` is `papeete-actor-synchronous-
+messaging describe .`'s output, run exactly once at Docker build time (see `Dockerfile`); this
+route reads that file's bytes once at startup and serves the same fixed dict back on every
+request, never recomputing it. It exists for a human at a browser, not for another actor's own
+resolution.
 """
 from pathlib import Path
 
+import yaml
 from papeete_actor_synchronous_messaging.actor import Actor
 from papeete_actor_synchronous_messaging.engine import ScriptedEngine
 
@@ -19,6 +27,7 @@ from papeete_actor_synchronous_messaging_http.mailbox import HttpMailbox
 from decide import Decisions
 
 HERE = Path(__file__).resolve().parent
+CARD = yaml.safe_load((HERE / "card.yaml").read_text())
 
 RULES = [
     ("verb: request", {"accepted": True,
@@ -47,11 +56,16 @@ def _trigger_order() -> dict:
     }
 
 
+def _card_route() -> dict:
+    return CARD
+
+
 if __name__ == "__main__":
     decisions = Decisions()
-    mailbox = HttpMailbox(routes={"/order": _trigger_order})
+    mailbox = HttpMailbox(routes={"/order": _trigger_order, "/card": _card_route})
     actor = Actor.from_card(HERE, ScriptedEngine(RULES), mailbox=mailbox, work=decisions.work)
     _cell["actor"] = actor
     print(f"Customer listening on :8080 — card {HERE}", flush=True)
     print("GET /order triggers a real request + query exchange with the Waiter", flush=True)
+    print("GET /card serves the composed card, baked in at build time", flush=True)
     mailbox.serve_forever()

@@ -10,8 +10,9 @@ separate containers, talking over `HttpMailbox`, deployable to a real cluster.
 | `<actor>/actor-data.yaml` | the data dictionary — `papeete-actor-data/v0` |
 | `<actor>/actor-message.yaml` | the message catalog — `papeete-actor-message/v0` |
 | `<actor>/actor-synchronous-messaging.yaml` | the doors — `synchronous-messaging-doors/v0`, wiring each message to `request` or `query` |
-| `<actor>/Dockerfile` | the build recipe — `python:3.12-slim`, pre-built wheels (see below) |
-| `<actor>/app.py` | the actor itself — `Actor` on an `HttpMailbox` |
+| `<actor>/Dockerfile` | the build recipe — `python:3.12-slim`, pre-built wheels (see below), bakes `card.yaml` |
+| `<actor>/app.py` | the actor itself — `Actor` on an `HttpMailbox`, plus `GET /card` |
+| `<actor>/card.yaml` | NOT committed — `describe`'s output, baked into the image at build time (see below) |
 | `<actor>/deploy/k8s/` | kustomize deploy config — `base/` + `overlays/develop/` (`ADR-PA-0025`) |
 | `product.yaml` / `productK8s.yaml` | what `papeete-deploy` resolves and runs |
 
@@ -19,19 +20,31 @@ A peer's door ids (`Waiter`'s `take-order`/`order-status`) are each actor's own 
 knowledge, not something resolved from a shared file — see `customer/app.py` and
 `customer/decide.py` ([ADR-PASH-0002](../adr/ADR-PASH-0002-follow-the-core-packages-back-to-basics-reset.md)).
 
+## `GET /card` — an actor's own composed card, in a browser
+
+Both `waiter` and `customer` serve their own composed card (identity + data dictionary + message
+catalog + doors — everything `papeete-actor-synchronous-messaging describe FOLDER` prints) at
+`GET /card`. It is **not** a live discovery door — `ADR-PASH-0001`'s "no `GET /card`" still
+holds. Each `Dockerfile` runs `describe` exactly once, at build time, baking the result into the
+image as `card.yaml`; `app.py` reads that file once at startup and serves the same fixed dict on
+every request, never recomputing it. See
+[ADR-PASH-0003](../adr/ADR-PASH-0003-a-static-baked-card-route-is-not-the-door-adr-pash-0001-rejected.md)
+for why this doesn't reopen that decision.
+
 ## Build the wheels first
 
-Neither `papeete-actor`, `papeete-actor-message` nor `papeete-actor-synchronous-messaging` is on
-PyPI yet, so each actor's Docker build context carries its own copy of all three wheels (plus
-this package's own), built locally rather than fetched:
+`papeete-actor`, `papeete-actor-message` and `papeete-actor-synchronous-messaging` are all on
+PyPI now, but each actor's Docker build context still carries its own copy of all three wheels
+(plus this package's own), built locally rather than fetched — the `Dockerfile`'s `RUN
+papeete-actor-synchronous-messaging describe .` step needs the CLI on `PATH` before the image's
+final layer, and pinning to whatever's on disk in this workspace keeps that in step with
+whatever's being worked on here, rather than drifting from the latest PyPI release:
 
 ```bash
 ./examples/build-wheels.sh
 ```
 
-Re-run it after any change to any of the sibling packages. Once they're published, the
-Dockerfiles collapse to a plain `pip install papeete-actor-synchronous-messaging-http` and this
-step goes away.
+Re-run it after any change to any of the sibling packages.
 
 ## Try it locally, no cluster
 
@@ -46,6 +59,7 @@ docker run -d --rm --name customer --network table-service customer
 # neither container publishes a host port — reach them from another container on the
 # same Docker network, the same way a real deployment would resolve them by name:
 docker run --rm --network table-service curlimages/curl -s http://customer:8080/order
+docker run --rm --network table-service curlimages/curl -s http://waiter:8080/card
 ```
 
 `GET /order` on the Customer is what makes the conversation happen: it opens a real `request`
@@ -115,11 +129,6 @@ acceptable. `python3 -c "os.path.relpath(...)"` above computes the relative hop 
 dir back to this repo's checkout; that is what `--load-restrictor=LoadRestrictionsNone` is
 actually for. Verified against `kubectl` v1.34 / docker-desktop.
 
-`kubectl kustomize <dir>` needs an ABSOLUTE-outside-root reference to work (kustomize rejects a
-raw absolute `resources:` entry as a "new root"); the heredoc above avoids that by writing the
-temp kustomization to a scratch dir and letting the shell substitute the real path — the same
-approach, minus the wrapper script, `papeete-deploy` itself uses internally.
-
 External reachability (through the ingress, not just cluster-internal DNS) needs a
 port-forward on this cluster, since `ingress-nginx-controller`'s Service here is `ClusterIP`
 only:
@@ -127,10 +136,12 @@ only:
 ```bash
 kubectl -n ingress-nginx port-forward svc/ingress-nginx-controller 18080:80 &
 curl http://localhost:18080/develop/customer/api/order
+curl http://localhost:18080/develop/waiter/api/card       # or /develop/customer/api/card
 ```
 
 The response to `/order` names a real accepted request at the Waiter's `take-order` door and a
 real answer from `order-status` — the same conversation
 `papeete-actor-synchronous-messaging`'s own in-process worked example proves, this time crossing
-a real Kubernetes `Service` boundary. Verified in this repo's own session, both cluster-internal
-(`curltest` above) and through the ingress port-forward.
+a real Kubernetes `Service` boundary. `/card` is the same URL a browser would use to read either
+actor's own composed card — see "`GET /card`" above. Verified in this repo's own session, both
+cluster-internal (`curltest` above) and through the ingress port-forward.
