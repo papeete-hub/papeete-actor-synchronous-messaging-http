@@ -88,10 +88,12 @@ resolved by name+label:
 kubectl create namespace table-service-demo
 for actor in waiter customer; do
   dir=$(mktemp -d)
+  target="$(pwd)/examples/$actor/deploy/k8s/overlays/develop"
+  rel=$(python3 -c "import os; print(os.path.relpath('$target', '$dir'))")
   cat > "$dir/kustomization.yaml" <<EOF
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-resources: [$(pwd)/examples/$actor/deploy/k8s/overlays/develop]
+resources: [$rel]
 images: [{name: $actor, newTag: latest}]
 EOF
   kubectl kustomize "$dir" --load-restrictor=LoadRestrictionsNone | \
@@ -104,6 +106,14 @@ kubectl -n table-service-demo run curltest --rm -i --restart=Never \
 
 kubectl delete namespace table-service-demo
 ```
+
+**The scratch kustomization's `resources:` entry must be RELATIVE, never absolute.** An earlier
+version of this recipe wrote an absolute path there; `kubectl kustomize` rejects that outright
+(`new root '...' cannot be absolute`) regardless of `--load-restrictor`, which only lifts the
+restriction on a *relative* path escaping its root — it does not make an absolute path
+acceptable. `python3 -c "os.path.relpath(...)"` above computes the relative hop from the scratch
+dir back to this repo's checkout; that is what `--load-restrictor=LoadRestrictionsNone` is
+actually for. Verified against `kubectl` v1.34 / docker-desktop.
 
 `kubectl kustomize <dir>` needs an ABSOLUTE-outside-root reference to work (kustomize rejects a
 raw absolute `resources:` entry as a "new root"); the heredoc above avoids that by writing the
