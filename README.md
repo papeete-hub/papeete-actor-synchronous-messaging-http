@@ -23,23 +23,35 @@ binding is heavier than a single `judge()` call.
 
 ```python
 from papeete_actor_synchronous_messaging.actor import Actor
-from papeete_actor_synchronous_messaging.engine import ScriptedEngine
 from papeete_actor_synchronous_messaging_http.mailbox import HttpMailbox
 
 box = HttpMailbox()                          # binds 0.0.0.0:8080
-actor = Actor.from_card("path/to/actor-folder", ScriptedEngine([...]), mailbox=box)
-box.serve_forever()                          # blocks, answering POST /receive
+actor = Actor.from_card(
+    "path/to/actor-folder", mailbox=box,
+    actions={"take-order": take_order}, queries={"order-status": order_status})
+box.serve_forever()                          # blocks, answering one POST route per door
 ```
 
+No `engines=` above — `take_order`/`order_status` are plain fact-checks against the actor's own
+state, and neither door needs a vendor's judgement to answer
+([ADR-PAS-0012](https://github.com/papeete-hub/papeete-actor-synchronous-messaging/blob/main/adr/ADR-PAS-0012-an-engine-is-for-judgement-a-fixed-rule-set-could-not-replace.md)).
+`Actor` still accepts `engines={name: Engine(...)}` for a door whose own
+`actor-synchronous-messaging.yaml` names one — this binding does not narrow that.
+
 - **`register(actor)` / `deliver(*, from_, to, verb, door, payload)`** — the two methods
-  `Mailbox` requires. `deliver()` is the outbound half: `POST http://<addressee,
-  lowercased>:8080/receive`, JSON body `{"from": ..., "verb": ..., "door": ..., "payload": {...}}`,
-  reply parsed back with a plain `json.loads()` — there is no envelope to build or unwrap.
-- **`serve_forever()`** — the inbound half. One route, `POST /receive`; the body's `verb`/`door`/
-  `payload`/`from` become the arguments to `actor.receive()`, and the reply — whatever plain dict
-  the answering actor's own `work` produced — goes back as JSON, as-is. A `Refusal` at the
-  membrane (undeclared door, wrong verb for it, `work` itself failing) comes back as an HTTP 400
-  rather than a crashed request thread — refuse, never repair, carried across the wire.
+  `Mailbox` requires. `register()` reads the actor's own card and builds one `POST /<door-id>`
+  route per door it declares — `actions` answer `request`, `queries` answer `query`
+  ([ADR-PASH-0004](./adr/ADR-PASH-0004-one-http-route-per-door-not-one-generic-receive.md)).
+  `deliver()` is the outbound half: `POST http://<addressee, lowercased>:8080/<door>`, JSON body
+  `{"from": ..., "payload": {...}}`, reply parsed back with a plain `json.loads()` — no envelope,
+  and no `verb`/`door` field either: the URL already says both, so the wire only ever carries the
+  caller's identity and the business payload.
+- **`serve_forever()`** — the inbound half. Each door's own route derives its `verb` from which
+  of the actor's doors it is; the body's `payload`/`from` become the rest of `actor.receive()`'s
+  arguments, and the reply — whatever plain dict the answering actor's own `work` produced —
+  goes back as JSON, as-is. A `Refusal` at the membrane (undeclared door, wrong verb for it,
+  `work` itself failing) comes back as an HTTP 400 rather than a crashed request thread — refuse,
+  never repair, carried across the wire.
 - **Addressing is a name, not a lookup.** No service registry, no address book: the addressee's
   own name, lowercased, IS the hostname — a Kubernetes `Service` or Docker Compose's embedded
   DNS resolves that to a real address for free. `peers={name: base_url}` overrides the

@@ -1,21 +1,42 @@
-manifest: synchronous-messaging-doors/v0
+manifest: synchronous-messaging-doors/v1
 # ── the doors: what I can be asked to do ────────────────────────────────
 # ONE OF EACH, and that pairing is not decoration. `take-order` promises to try; without a
 # query door beside it, nobody could ever ask what became of the attempt.
+#
+# EVERY DOOR NAMES TWO MESSAGES (ADR-PAS-0008, ADR-PAS-0009) — `door_schema` names the message
+# describing what a `request`/`query` may send here; `completion_schema` names the message
+# describing what a JUDGED reply must contain — one name for a single shape, or a list naming
+# several possible OUTCOME shapes (event-like: which message matched IS the outcome, not a
+# boolean flag inside it). Both resolve against this actor's own `actor-message.yaml`; a door's
+# own `id` need not equal either.
+#
+# NEITHER DOOR NAMES AN `engine:` (ADR-PAS-0012, narrowing ADR-PAS-0010). Whether a table
+# exists, whether a dish is on tonight's menu, whether a table is already seated — every one of
+# these is a plain check against this actor's own state (`order_book.py`'s `TABLES`, `MENU`,
+# `seated`), not a judgement call. An engine is for judgement a fixed rule set could not
+# replace; nothing left on this card needs one — `recommend-dish`, the query that used to exist
+# solely to prove `engine:` was not an actions-only key, is gone: that structural claim is
+# proven upstream, at the schema level, independent of which worked door happens to use one.
 actions:
-  - id: give-table
-    means: >-
-      the door for "seat me at a table". Send it here with a table number, and I will seat you.
-    completion: whether I seated you, and at which table.
   - id: take-order
     means: >-
       the door for "seat me and take my order". Send it here with a table number and what was
       asked for, and I write it into my own order book. NOT the door for a complaint about food
       already served — that belongs wherever this restaurant records engineering debt, not here.
     completion: whether I took the order, and the order id to ask about it later.
+    door_schema: take-order-cmd
+    completion_schema: [accepted-order-result, refused-order-result]
+  - id: give-table
+    means: >-
+      the door for "seat me at a table". Send it here with a table number, and I will seat you.
+    completion: whether I seated you, and at which table.
+    door_schema: give-table-cmd
+    completion_schema: give-table-result
 queries:
   - id: order-status
     means: >-
       ask what became of an order, quoting its id as `about`, or ask what my order book holds
       overall. I answer from my own records and invent nothing.
     completion: what I recorded, or that I hold nothing under the id you gave.
+    door_schema: order-status-cmd
+    completion_schema: order-status-result

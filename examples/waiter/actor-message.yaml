@@ -1,19 +1,56 @@
-message: papeete-actor-message/v0
+message: papeete-actor-message/v1
 
 messages:
-  - name: give-table
+  - name: give-table-cmd
     intent: Seat a party at a table.
     references:
       - table_number
 
-  - name: take-order
-    intent: Register what a customer wants to order, and where.
+  - name: give-table-result
+    intent: Report whether a party was seated, and at which table.
+    references:
+      - accepted
+      - table_number
+
+  - name: take-order-cmd
+    intent: Register what a customer wants to order, and the grounds given for it.
     references:
       - table_number
-      - dish
+      - subject
+      - means
+    optional:
+      - table_number
 
-  - name: order-status
-    intent: Ask for and report the current state of a previously placed order.
+  - name: accepted-order-result
+    intent: Report that a previously placed order was accepted, and its assigned id.
     references:
+      - accepted
+      - because
       - order_id
-      - order_state
+      - line
+    optional:
+      - because
+
+  - name: refused-order-result
+    intent: Report that a previously placed order was refused.
+    references:
+      - accepted
+      - because
+    optional:
+      - because
+
+  - name: order-status-cmd
+    intent: Ask for the current state of a previously placed order, or of all of them.
+    references:
+      - about
+      - asks
+    optional:
+      - about
+
+  - name: order-status-result
+    intent: Report what is on record for an order, or the whole order book.
+    references:
+      - says
+      - orders
+    optional:
+      - orders

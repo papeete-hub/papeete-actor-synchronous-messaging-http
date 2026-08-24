@@ -1,14 +1,22 @@
-manifest: synchronous-messaging-doors/v0
+manifest: synchronous-messaging-doors/v1
+# NEITHER DOOR NAMES AN `engine:` (ADR-PAS-0012, narrowing ADR-PAS-0010). `confirm-substitution`
+# is a plain check against this actor's own fixed knowledge (`decide.py`'s `_category`,
+# `AVAILABLE_SUBSTITUTES`) — not a judgement call. `substitution-decision` names none either: a
+# pure lookup against this actor's own decisions, never engine-backed.
 actions:
   - id: confirm-substitution
     means: >-
       the door for "the kitchen ran out of what you ordered — will a substitute do?". Send it
-      here with what ran out and what is offered instead. I decide, and my decision is
-      discovered through `substitution-decision`.
+      here with the table, what ran out, and what is offered instead. I decide, and my decision
+      is discovered through `substitution-decision`.
     completion: whether I accept the substitute, and what I asked the Waiter to change.
+    door_schema: confirm-substitution-cmd
+    completion_schema: [accepted-decision-result, refused-decision-result]
 queries:
   - id: substitution-decision
     means: >-
       ask what I decided about a substitution, or what my own records hold overall. I answer
       from my own records — including what the Waiter told me while I decided.
     completion: what I recorded.
+    door_schema: substitution-decision-cmd
+    completion_schema: substitution-decision-result

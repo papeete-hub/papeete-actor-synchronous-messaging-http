@@ -1,14 +1,44 @@
-message: papeete-actor-message/v0
+message: papeete-actor-message/v1
 
 messages:
-  - name: confirm-substitution
+  - name: confirm-substitution-cmd
     intent: Decide whether a proposed substitute dish is acceptable.
     references:
+      - table_number
       - original_dish
-      - substitute_dish
+      - subject
+      - means
 
-  - name: substitution-decision
-    intent: Ask for and report what was decided about a proposed substitution.
+  - name: accepted-decision-result
+    intent: Report that a proposed substitution was accepted, and its assigned decision id.
     references:
-      - substitution_id
-      - substitution_state
+      - accepted
+      - because
+      - decision_id
+      - line
+    optional:
+      - because
+
+  - name: refused-decision-result
+    intent: Report that a proposed substitution was refused.
+    references:
+      - accepted
+      - because
+    optional:
+      - because
+
+  - name: substitution-decision-cmd
+    intent: Ask what was decided about a proposed substitution, or of all of them.
+    references:
+      - about
+      - asks
+    optional:
+      - about
+
+  - name: substitution-decision-result
+    intent: Report what is on record for a decision, or all of my own decisions.
+    references:
+      - says
+      - decisions
+    optional:
+      - decisions

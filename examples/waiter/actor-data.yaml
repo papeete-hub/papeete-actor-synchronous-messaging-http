@@ -1,19 +1,54 @@
 data: papeete-actor-data/v0
 
+# THE FIELDS request_schema IS BUILT FROM (ADR-PAS-0009) — this is now checked, not aspirational:
+# it must name exactly what `take_order`/`order_status` actually read (order_book.py), because
+# `card.py` derives each door's request_schema straight from these items.
+
 items:
   - name: table_number
     type: integer
-    description: The table where the order was placed.
+    description: The table where a party is seated.
 
-  - name: dish
+  - name: subject
     type: string
-    description: The name of the dish being ordered.
+    description: What is being ordered, or which order is being reported on.
+
+  - name: means
+    type: string
+    description: >-
+      The grounds given for a request — kept as a quotation, attributed to whoever gave it,
+      never restated as this actor's own finding.
+
+  - name: about
+    type: string
+    description: >-
+      The id of a specific order to ask about; omitted to ask what the order book holds
+      overall.
+
+  - name: asks
+    type: string
+    description: The question being asked, in prose.
+
+  - name: accepted
+    type: boolean
+    description: Whether the request was accepted.
+
+  - name: because
+    type: string
+    description: The grounds for a judgement, in the judging actor's own words.
 
   - name: order_id
     type: string
-    description: The unique identifier assigned to a placed order.
+    description: The unique identifier assigned to a newly accepted order.
 
-  - name: order_state
-    type: enum
-    values: [resolved, rejected, pending, unknown]
-    description: The current lifecycle state of an order.
+  - name: line
+    type: string
+    description: A one-line, human-readable confirmation of what was recorded.
+
+  - name: says
+    type: string
+    description: What I am reporting, in prose.
+
+  - name: orders
+    type: list
+    description: The ids of every order currently on my own record.

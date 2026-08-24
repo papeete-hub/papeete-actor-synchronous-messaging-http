@@ -35,10 +35,14 @@ mechanism the core package has since deleted outright.
 **Follow the core package's contract exactly, as it now stands, not as ADR-PASH-0001 described
 it.** Concretely:
 
-- `deliver()` takes `(*, from_, to, verb, door, payload) -> dict` — a plain lookup-and-call, no
+- ~~`deliver()` takes `(*, from_, to, verb, door, payload) -> dict` — a plain lookup-and-call, no
   envelope object. The wire body is `{"from": ..., "verb": ..., "door": ..., "payload": ...}`;
   `to` never travels, since the receiving process only ever answers for the one actor it
-  registered.
+  registered.~~ **The wire shape is superseded by
+  [ADR-PASH-0004](./ADR-PASH-0004-one-http-route-per-door-not-one-generic-receive.md):** `verb`/
+  `door` no longer travel in the body — each door gets its own route instead. `deliver()`'s own
+  Python signature (`from_, to, verb, door, payload`) is unchanged; only what it puts on the wire
+  is. `to` still never travels, unchanged.
 - `do_POST` calls `actor.receive(verb=..., door=..., payload=..., from_=...)` and writes the
   reply dict back as `json.dumps(reply)` — nothing to unwrap, nothing to re-wrap.
 - `SimpleActor`/`SimpleCard` are gone; this repo's tests and examples now build a `Card` with

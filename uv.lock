@@ -48,7 +48,7 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "papeete-actor-message"
-version = "0.2.0"
+version = "0.3.0"
 source = { editable = "../papeete-actor-message" }
 dependencies = [
     { name = "pyyaml" },
@@ -63,7 +63,7 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "papeete-actor-synchronous-messaging"
-version = "0.1.1"
+version = "0.2.1"
 source = { editable = "../papeete-actor-synchronous-messaging" }
 dependencies = [
     { name = "papeete-actor" },
@@ -84,7 +84,7 @@ provides-extras = ["claude", "openai", "dev"]
 
 [[package]]
 name = "papeete-actor-synchronous-messaging-http"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "." }
 dependencies = [
     { name = "papeete-actor-synchronous-messaging" },

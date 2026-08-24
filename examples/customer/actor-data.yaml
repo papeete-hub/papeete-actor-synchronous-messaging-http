@@ -1,19 +1,58 @@
 data: papeete-actor-data/v0
 
+# THE FIELDS request_schema IS BUILT FROM (ADR-PAS-0009) — checked, not aspirational: it must
+# name exactly what `confirm_substitution`/`substitution_decision` actually read (decide.py),
+# because `card.py` derives each door's request_schema straight from these items.
+
 items:
+  - name: table_number
+    type: integer
+    description: The table a proposed substitution concerns.
+
   - name: original_dish
     type: string
-    description: The dish the kitchen can no longer serve.
+    description: The dish a proposed substitute would replace.
 
-  - name: substitute_dish
+  - name: subject
     type: string
-    description: What the waiter is offering instead.
+    description: What is being proposed as a substitute, or which decision is being reported on.
 
-  - name: substitution_id
+  - name: means
     type: string
-    description: The unique identifier assigned to a proposed substitution.
+    description: >-
+      The grounds given for a request — kept as a quotation, attributed to whoever gave it,
+      never restated as this actor's own finding.
 
-  - name: substitution_state
-    type: enum
-    values: [resolved, rejected, pending, unknown]
-    description: The current lifecycle state of a substitution decision.
+  - name: about
+    type: string
+    description: >-
+      The id of a specific decision to ask about; omitted to ask what my own records hold
+      overall.
+
+  - name: asks
+    type: string
+    description: The question being asked, in prose.
+
+  - name: accepted
+    type: boolean
+    description: Whether the substitution was accepted.
+
+  - name: because
+    type: string
+    description: The grounds for a judgement, in the judging actor's own words.
+
+  - name: decision_id
+    type: string
+    description: The unique identifier assigned to a newly recorded decision.
+
+  - name: line
+    type: string
+    description: A one-line, human-readable confirmation of what was recorded.
+
+  - name: says
+    type: string
+    description: What I am reporting, in prose.
+
+  - name: decisions
+    type: list
+    description: The ids of every decision currently on my own record.

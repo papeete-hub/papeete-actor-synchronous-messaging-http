@@ -35,13 +35,30 @@ def _free_port() -> int:
         return s.getsockname()[1]
 
 
+_OPEN_SCHEMA = {"properties": {}, "required": []}          # any payload conforms — see below
+
+
 def _card(name: str, action_id: str, query_id: str) -> Card:
-    """A minimal, conformant card — one action door, one query door."""
+    """A minimal, conformant card — one action door, one query door.
+
+    `request_schema` is a required `Offer` field since ADR-PAS-0009 (`Actor.receive()` checks
+    every inbound payload against it) — `_OPEN_SCHEMA` (no `additionalProperties: False`, no
+    `required`) accepts whatever this file's own tests send, since payload-shape conformance is
+    the core package's own suite's job, not this binding's. Both doors name `engine="scripted"`
+    (ADR-PAS-0010) and register no handler — the judged reply alone is the answer — so this
+    file's tests only need an `engines={"scripted": ScriptedEngine(...)}` registry, no handler
+    functions. `ScriptedEngine` here is exactly the keyless test double ADR-PAS-0012 endorses
+    for CI — this file is testing the wire mechanism, not authoring a worked example's business
+    logic, so it is unaffected by that ADR narrowing which doors the worked examples themselves
+    (`examples/waiter`, `examples/customer` — neither names an `engine:` any more) may use one.
+    """
     return Card(
         path=Path(f"/dev/null/{name}"), name=name, description="d",
         data=(), messages=(),
-        actions={action_id: Offer(id=action_id, means="test door", completion="an ack")},
-        queries={query_id: Offer(id=query_id, means="test door", completion="an answer")},
+        actions={action_id: Offer(id=action_id, means="test door", completion="an ack",
+                                  request_schema=_OPEN_SCHEMA, engine="scripted")},
+        queries={query_id: Offer(id=query_id, means="test door", completion="an answer",
+                                 request_schema=_OPEN_SCHEMA, engine="scripted")},
     )
 
 
@@ -69,8 +86,9 @@ def two_actors():
     answerer_box = HttpMailbox(host="127.0.0.1", port=answerer_port,
                                peers={"Caller": f"http://127.0.0.1:{caller_port}"})
 
-    caller = Actor(caller_card, ScriptedEngine(ACCEPTS), mailbox=caller_box)
-    answerer = Actor(answerer_card, ScriptedEngine(ACCEPTS), mailbox=answerer_box)
+    caller = Actor(caller_card, engines={"scripted": ScriptedEngine(ACCEPTS)}, mailbox=caller_box)
+    answerer = Actor(answerer_card, engines={"scripted": ScriptedEngine(ACCEPTS)},
+                     mailbox=answerer_box)
 
     threads = [threading.Thread(target=box.serve_forever, daemon=True)
                for box in (caller_box, answerer_box)]
@@ -123,7 +141,7 @@ def test_health_and_a_custom_route_answer_over_get():
 
     port = _free_port()
     box = HttpMailbox(host="127.0.0.1", port=port, routes={"/greet": lambda: {"says": "hi"}})
-    box.register(Actor(_card("Solo", "act", "ask"), ScriptedEngine([])))
+    box.register(Actor(_card("Solo", "act", "ask"), engines={"scripted": ScriptedEngine([])}))
     thread = threading.Thread(target=box.serve_forever, daemon=True)
     thread.start()
     _wait_until_listening(port)

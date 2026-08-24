@@ -1,6 +1,6 @@
 [project]
 name = "papeete-actor-synchronous-messaging-http"
-version = "0.1.0"
+version = "0.2.0"
 description = "An HTTP binding for papeete-actor-synchronous-messaging — a Mailbox adapter, deployable as a real service."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -20,13 +20,15 @@ classifiers = [
 # beyond that: `http.server` and `urllib.request`, the same choice every small HTTP actor in
 # this ecosystem already makes (`papeete-actor`'s `car-inspector`, `papeete-deploy`'s own
 # customer/waiter demo) — no framework to keep current, no framework to explain to a reader.
-dependencies = ["papeete-actor-synchronous-messaging>=0.1.0"]
+dependencies = ["papeete-actor-synchronous-messaging>=0.2.1"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]
 
 [tool.uv.sources]
-# LOCAL-ONLY, FOR DEV AND TEST — not yet published anywhere a plain version pin could resolve.
+# `papeete-actor-synchronous-messaging` is now on PyPI (0.2.1), but this checkout still points
+# at the sibling so active co-development (ADR-PAS-0012's example rewrite, most recently) lands
+# here without a release round-trip first.
 papeete-actor-synchronous-messaging = { path = "../papeete-actor-synchronous-messaging", editable = true }
 
 [build-system]

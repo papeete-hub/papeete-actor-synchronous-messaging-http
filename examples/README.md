@@ -8,8 +8,8 @@ separate containers, talking over `HttpMailbox`, deployable to a real cluster.
 |---|---|
 | `<actor>/actor.yaml` | identity — `papeete-actor-manifest/v0`: name + description |
 | `<actor>/actor-data.yaml` | the data dictionary — `papeete-actor-data/v0` |
-| `<actor>/actor-message.yaml` | the message catalog — `papeete-actor-message/v0` |
-| `<actor>/actor-synchronous-messaging.yaml` | the doors — `synchronous-messaging-doors/v0`, wiring each message to `request` or `query` |
+| `<actor>/actor-message.yaml` | the message catalog — `papeete-actor-message/v1` |
+| `<actor>/actor-synchronous-messaging.yaml` | the doors — `synchronous-messaging-doors/v1`: each names a `door_schema`/`completion_schema` message and, only where a fixed rule set genuinely could not answer it, an `engine` (ADR-PAS-0010, narrowed by ADR-PAS-0012) — neither door here names one |
 | `<actor>/Dockerfile` | the build recipe — `python:3.12-slim`, pre-built wheels (see below), bakes `card.yaml` |
 | `<actor>/app.py` | the actor itself — `Actor` on an `HttpMailbox`, plus `GET /card` |
 | `<actor>/card.yaml` | NOT committed — `describe`'s output, baked into the image at build time (see below) |
