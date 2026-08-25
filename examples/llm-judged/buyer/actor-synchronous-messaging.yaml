@@ -1,0 +1,23 @@
+manifest: synchronous-messaging-doors/v1
+# NEITHER DOOR NAMES AN `engine:` — "did the caller send a real subject?" is a plain check
+# against this actor's own state, not a judgement. The Buyer's own answering side exists to
+# show what `examples/deterministic/customer`/`examples/deterministic/waiter` already prove: both actors here are actors,
+# neither is a client. `report-issue` (the pair's one judged door) lives on the Delivery
+# Person's own card instead.
+actions:
+  - id: delivery-notice
+    means: >-
+      the door for "here's what happened with your delivery" — the Delivery Person tells me a
+      delivery was made, delayed, or otherwise worth recording. I check there is something real
+      to record and keep it in my own notices.
+    completion: whether I recorded the notice, and its id to ask about later.
+    door_schema: delivery-notice-cmd
+    completion_schema: delivery-notice-result
+queries:
+  - id: delivery-status
+    means: >-
+      ask what I recorded for a notice, quoting its id as `about`, or ask what my own records
+      hold overall. I answer from my own records and invent nothing.
+    completion: what I recorded, or that I hold nothing under the id you gave.
+    door_schema: delivery-status-cmd
+    completion_schema: delivery-status-result

@@ -1,0 +1,5 @@
+manifest: papeete-actor-manifest/v0
+name: Buyer
+description: >-
+  Reports delivery issues and asks what became of them; keeps its own record of delivery
+  notices from the Delivery Person.

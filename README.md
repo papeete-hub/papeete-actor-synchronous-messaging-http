@@ -60,17 +60,20 @@ state, and neither door needs a vendor's judgement to answer
 
 **No `GET /card`.** Card discovery stays static — a peer learns what another ships by reading its
 card, never by asking it live. A deployment that needs a peer's card ships a copy of it; door ids
-on a peer are the calling actor's own business knowledge (see `examples/customer/decide.py`),
-nothing here resolves or gates that.
+on a peer are the calling actor's own business knowledge (see
+`examples/deterministic/customer/decide.py`), nothing here resolves or gates that.
 
-## `examples/` — a real, deployable pair
+## `examples/` — two real, deployable pairs
 
-`examples/customer/` and `examples/waiter/` are the same conversation
-`papeete-actor-synchronous-messaging`'s own in-process scenario proves, wired to `HttpMailbox`
-and shaped to build and deploy like any other actor in this ecosystem
-(`actor.yaml` + `Dockerfile`, `deploy/k8s/base` + `overlays/develop`, per `papeete-actor`'s own
-`ADR-PA-0025` convention). See `examples/README.md` for the exact build/deploy commands, local
-and on Kubernetes.
+`examples/deterministic/` (`customer`/`waiter`) and `examples/llm-judged/` (`buyer`/
+`delivery-person`) are the same two conversations `papeete-actor-synchronous-messaging`'s own
+in-process worked examples prove, wired to `HttpMailbox` and shaped to build and deploy like any
+other actor in this ecosystem (`actor.yaml` + `Dockerfile`, `deploy/k8s/base` + `overlays/
+develop`, per `papeete-actor`'s own `ADR-PA-0025` convention). The first pair names no `engine:`
+anywhere; the second's `report-issue` door is the one place a real vendor (Claude or OpenAI,
+selectable at container start) judges something a fixed rule set genuinely could not
+(ADR-PAS-0012). See `examples/README.md` for the exact build/deploy commands, local and on
+Kubernetes.
 
 ## Test
 

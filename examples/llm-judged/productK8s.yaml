@@ -1,0 +1,15 @@
+product: delivery-claims
+version: "0.1.0"
+environment:
+  type: k8s
+  name: papeete-actor-synchronous-messaging-http-example-llm-judged
+  k8sName: docker-desktop
+actors:
+  - name: buyer
+    label: alpha
+    version: latest
+    recipe: develop
+  - name: delivery-person
+    label: alpha
+    version: latest
+    recipe: develop

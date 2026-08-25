@@ -1,0 +1,5 @@
+manifest: papeete-actor-manifest/v0
+name: Delivery Person
+description: >-
+  Judges delivery-issue claims and answers what became of one; notifies the Buyer when a
+  delivery happens.

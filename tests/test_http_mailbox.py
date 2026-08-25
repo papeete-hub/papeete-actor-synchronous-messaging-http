@@ -14,9 +14,7 @@ instead — the smallest input that lets a real conversation happen.
 """
 from __future__ import annotations
 
-import socket
 import threading
-import time
 from pathlib import Path
 
 import pytest
@@ -27,12 +25,8 @@ from papeete_actor_synchronous_messaging.engine import ScriptedEngine
 
 from papeete_actor_synchronous_messaging_http.mailbox import HttpMailbox
 
-
-def _free_port() -> int:
-    """An unused localhost port, claimed and released — good enough between claim and bind."""
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind(("127.0.0.1", 0))
-        return s.getsockname()[1]
+from conftest import free_port as _free_port
+from conftest import wait_until_listening as _wait_until_listening
 
 
 _OPEN_SCHEMA = {"properties": {}, "required": []}          # any payload conforms — see below
@@ -50,7 +44,9 @@ def _card(name: str, action_id: str, query_id: str) -> Card:
     functions. `ScriptedEngine` here is exactly the keyless test double ADR-PAS-0012 endorses
     for CI — this file is testing the wire mechanism, not authoring a worked example's business
     logic, so it is unaffected by that ADR narrowing which doors the worked examples themselves
-    (`examples/waiter`, `examples/customer` — neither names an `engine:` any more) may use one.
+    (`examples/deterministic/waiter`, `examples/deterministic/customer` — neither names an
+    `engine:` any more; `examples/llm-judged/delivery-person`'s `report-issue` is the one door
+    in either pair that legitimately does) may use one.
     """
     return Card(
         path=Path(f"/dev/null/{name}"), name=name, description="d",
@@ -101,16 +97,6 @@ def two_actors():
 
     caller_box.shutdown()
     answerer_box.shutdown()
-
-
-def _wait_until_listening(port: int, timeout: float = 2.0) -> None:
-    deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            if s.connect_ex(("127.0.0.1", port)) == 0:
-                return
-        time.sleep(0.02)
-    raise TimeoutError(f"nothing listening on 127.0.0.1:{port} after {timeout}s")
 
 
 def test_a_request_and_a_query_cross_a_real_socket(two_actors):

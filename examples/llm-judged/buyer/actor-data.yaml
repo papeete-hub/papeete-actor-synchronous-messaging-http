@@ -1,0 +1,50 @@
+data: papeete-actor-data/v0
+
+# THE FIELDS request_schema IS BUILT FROM (ADR-PAS-0009) — checked, not aspirational: it must
+# name exactly what `notices.py` actually reads, because `card.py` derives each door's
+# request_schema straight from these items.
+
+items:
+  - name: subject
+    type: string
+    description: What a delivery notice concerns, or which notice is being reported on.
+
+  - name: means
+    type: string
+    description: >-
+      The detail given with a notice — kept as a quotation, attributed to whoever gave it,
+      never restated as this actor's own finding.
+
+  - name: about
+    type: string
+    description: >-
+      The id of a specific notice to ask about; omitted to ask what my own records hold
+      overall.
+
+  - name: asks
+    type: string
+    description: The question being asked, in prose.
+
+  - name: accepted
+    type: boolean
+    description: Whether the notice was recorded.
+
+  - name: because
+    type: string
+    description: The reason a notice was refused, in this actor's own words.
+
+  - name: notice_id
+    type: string
+    description: The unique identifier assigned to a newly recorded notice.
+
+  - name: line
+    type: string
+    description: A one-line, human-readable confirmation of what was recorded.
+
+  - name: says
+    type: string
+    description: What I am reporting, in prose.
+
+  - name: notices
+    type: list
+    description: The ids of every notice currently on my own record.

@@ -1,0 +1,36 @@
+message: papeete-actor-message/v1
+
+messages:
+  - name: delivery-notice-cmd
+    intent: Notify the Buyer that something happened with a delivery, and the detail behind it.
+    references:
+      - subject
+      - means
+
+  - name: delivery-notice-result
+    intent: Report whether a delivery notice was recorded, and its assigned id.
+    references:
+      - accepted
+      - because
+      - notice_id
+      - line
+    optional:
+      - because
+      - notice_id
+      - line
+
+  - name: delivery-status-cmd
+    intent: Ask what was recorded for a delivery notice, or of all of them.
+    references:
+      - about
+      - asks
+    optional:
+      - about
+
+  - name: delivery-status-result
+    intent: Report what is on record for a notice, or all of my own notices.
+    references:
+      - says
+      - notices
+    optional:
+      - notices

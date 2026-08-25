@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: delivery-person
+  labels:
+    app: delivery-person
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: delivery-person
+  template:
+    metadata:
+      labels:
+        app: delivery-person
+    spec:
+      containers:
+        - name: delivery-person
+          image: delivery-person
+          ports:
+            - containerPort: 8080
+          env:
+            - name: ENGINE
+              value: scripted
+            # OPTIONAL ON PURPOSE — this Deployment must roll out cleanly whether or not
+            # `llm-engine-keys` exists yet. `report-issue` only reaches for one of these when
+            # ENGINE names the vendor that owns it (see the README); ENGINE=scripted (the
+            # default above) never touches either.
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: llm-engine-keys
+                  key: ANTHROPIC_API_KEY
+                  optional: true
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: llm-engine-keys
+                  key: OPENAI_API_KEY
+                  optional: true
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080

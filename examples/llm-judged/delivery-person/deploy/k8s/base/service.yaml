@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: delivery-person
+  labels:
+    app: delivery-person
+spec:
+  selector:
+    app: delivery-person
+  ports:
+    - port: 8080
+      targetPort: 8080

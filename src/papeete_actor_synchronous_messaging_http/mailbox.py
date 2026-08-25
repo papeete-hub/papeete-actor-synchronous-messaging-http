@@ -28,8 +28,8 @@ DISCOVERY OF DOORS STAYS STATIC, deliberately, exactly as the core package's own
 there is no door for "what are your doors". So there is no `GET /card` here, on purpose — adding
 one would be exactly the anti-pattern that design rejects. A deployment that needs a peer's card
 ships a copy of it (see this package's own `examples/`). Naming a door in its own URL doesn't
-reopen that: a caller must still know the id ahead of time, the same way `examples/customer/
-decide.py` already hardcodes `take-order`/`order-status` as literals — only where that already-
+reopen that: a caller must still know the id ahead of time, the same way `examples/deterministic/
+customer/decide.py` already hardcodes `take-order`/`order-status` as literals — only where that already-
 known string sits (a URL segment, not a JSON field) has changed.
 """
 from __future__ import annotations

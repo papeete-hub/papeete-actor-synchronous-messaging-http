@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: buyer
+  labels:
+    app: buyer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: buyer
+  template:
+    metadata:
+      labels:
+        app: buyer
+    spec:
+      containers:
+        - name: buyer
+          image: buyer
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080

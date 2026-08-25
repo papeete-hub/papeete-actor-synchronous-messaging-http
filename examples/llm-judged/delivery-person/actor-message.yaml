@@ -1,0 +1,45 @@
+message: papeete-actor-message/v1
+
+messages:
+  - name: report-issue-cmd
+    intent: >-
+      Report what went wrong with a delivery — late, wrong, or damaged — and the grounds for
+      the claim.
+    references:
+      - subject
+      - means
+
+  - name: claim-upheld-result
+    intent: Report that a claim was upheld, the remedy it warrants, and its assigned id.
+    references:
+      - accepted
+      - because
+      - claim_id
+      - remedy
+      - line
+    optional:
+      - because
+
+  - name: claim-denied-result
+    intent: Report that a claim was denied.
+    references:
+      - accepted
+      - because
+    optional:
+      - because
+
+  - name: claim-status-cmd
+    intent: Ask for the current state of a previously reported claim, or of all of them.
+    references:
+      - about
+      - asks
+    optional:
+      - about
+
+  - name: claim-status-result
+    intent: Report what is on record for a claim, or the whole claim book.
+    references:
+      - says
+      - claims
+    optional:
+      - claims

@@ -1,0 +1,27 @@
+manifest: synchronous-messaging-doors/v1
+# THE ONE PLACE `engine:` APPEARS IN THIS REPO'S EXAMPLES (ADR-PAS-0012, narrowing ADR-PAS-0010).
+# "Is this account of a late/wrong/damaged delivery credible, and what remedy does it warrant?"
+# has no fixed table that could answer it — there is no roster to check it against, unlike a
+# table number or a menu item (`examples/deterministic/waiter`). That is the honest test for whether a
+# door may name an engine: not "is this an action", but "could a fixed rule set answer this at
+# all". `scripted` here is a symbolic slot name (ADR-PAS-0010), not a vendor name — `app.py`
+# binds it to whichever real engine ENGINE names at container start.
+actions:
+  - id: report-issue
+    means: >-
+      the door for "something went wrong with what I received" — late, wrong, or damaged. Send
+      it here with what happened and the grounds for the claim; I judge whether it is credible
+      and what remedy it warrants.
+    completion: whether I uphold the claim, and what remedy it warrants.
+    door_schema: report-issue-cmd
+    completion_schema: [claim-upheld-result, claim-denied-result]
+    engine: scripted
+queries:
+  - id: claim-status
+    means: >-
+      ask what became of a claim, quoting its id as `about`, or ask what my own claim records
+      hold overall. I answer from my own records and invent nothing — a pure lookup, no
+      `engine:` here, unlike `report-issue` above.
+    completion: what I recorded, or that I hold nothing under the id you gave.
+    door_schema: claim-status-cmd
+    completion_schema: claim-status-result
