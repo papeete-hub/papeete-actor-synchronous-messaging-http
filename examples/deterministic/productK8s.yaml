@@ -1,9 +1,13 @@
-product: table-service
+product: pash-table-service
 version: "0.1.0"
 environment:
   type: k8s
   name: papeete-actor-synchronous-messaging-http-example
   k8sName: docker-desktop
+  # Selects deploy/k8s/overlays/<recipe> next to this file — the product-level Grafana
+  # dashboard (ADR-PD-0004, papeete-deploy >= 0.2.0), distinct from each actor's own
+  # `recipe:` below.
+  recipe: develop
 actors:
   - name: customer
     label: alpha

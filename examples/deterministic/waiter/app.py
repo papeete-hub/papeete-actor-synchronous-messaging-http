@@ -14,11 +14,18 @@ recomputes another actor's doors on demand. `card.yaml` is `papeete-actor-synchr
 describe .`'s output, run exactly once at Docker build time (see `Dockerfile`); this route reads
 that file's bytes once at startup and serves the same fixed dict back on every request, never
 recomputing it. It exists for a human at a browser, not for another actor's own resolution.
+
+`CUSTOMER_URL`, OPTIONAL, OVERRIDES `HttpMailbox`'s NAME-IS-HOSTNAME CONVENTION — needed here
+because `confirm-substitution`/`substitution-decision` (the Customer's own doors) are opened FROM
+the Waiter, the reverse direction of `/order`; see `customer/app.py`'s own docstring for why this
+override exists at all (`ADR-PD-0004`'s product-scoped `namePrefix`, `papeete-deploy` >= 0.2.0).
 """
+import os
 from pathlib import Path
 
 import yaml
 from papeete_actor_synchronous_messaging.actor import Actor
+from papeete_observability import configure
 
 from papeete_actor_synchronous_messaging_http.mailbox import HttpMailbox
 from order_book import OrderBook
@@ -26,14 +33,17 @@ from order_book import OrderBook
 HERE = Path(__file__).resolve().parent
 CARD = yaml.safe_load((HERE / "card.yaml").read_text())
 
+PEERS = {"Customer": os.environ["CUSTOMER_URL"]} if "CUSTOMER_URL" in os.environ else None
+
 
 def _card_route() -> dict:
     return CARD
 
 
 if __name__ == "__main__":
+    configure()                        # OTLP tracing/metrics/logs — see papeete-observability
     book = OrderBook()
-    mailbox = HttpMailbox(routes={"/card": _card_route})
+    mailbox = HttpMailbox(routes={"/card": _card_route}, peers=PEERS)
     actor = Actor.from_card(
         HERE, mailbox=mailbox,
         actions={"take-order": book.take_order, "give-table": book.give_table},

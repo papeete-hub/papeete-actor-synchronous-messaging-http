@@ -2,6 +2,9 @@
 # papeete-actor nor papeete-actor-synchronous-messaging is published there yet. Once they are,
 # this collapses to `RUN pip install papeete-actor-synchronous-messaging-http` and the wheels/
 # folder goes away; nothing else about this file changes.
+#
+# papeete-observability (a sibling repo, its own wheel alongside these four) is what turns
+# app.py's `configure()` call into a real OTLP exporter — see this repo's observability plan.
 FROM python:3.12-slim
 WORKDIR /app
 COPY wheels/*.whl /tmp/wheels/

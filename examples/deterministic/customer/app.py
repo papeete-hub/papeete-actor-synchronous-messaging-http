@@ -16,17 +16,30 @@ messaging describe .`'s output, run exactly once at Docker build time (see `Dock
 route reads that file's bytes once at startup and serves the same fixed dict back on every
 request, never recomputing it. It exists for a human at a browser, not for another actor's own
 resolution.
+
+`WAITER_URL`, OPTIONAL, OVERRIDES `HttpMailbox`'s NAME-IS-HOSTNAME CONVENTION. Under
+`papeete-deploy` >= 0.2.0 (`ADR-PD-0004`), every k8s object it applies is renamed with a
+product-scoped prefix (`waiter` -> `table-service-waiter`) — a literal string value like a peer's
+own hostname is exactly what that `namePrefix` transform structurally cannot see, so the Waiter's
+own `Service` is no longer reachable at the bare name `deliver()` would otherwise guess. `peers`
+(see `HttpMailbox`'s own docstring) already exists for precisely this case; this deployment's own
+`deploy/k8s/base/deployment.yaml` sets `WAITER_URL` to the real, product-prefixed base URL. Unset
+(e.g. under Compose, where names stay bare), `HttpMailbox`'s own convention is untouched.
 """
+import os
 from pathlib import Path
 
 import yaml
 from papeete_actor_synchronous_messaging.actor import Actor
+from papeete_observability import configure
 
 from papeete_actor_synchronous_messaging_http.mailbox import HttpMailbox
 from decide import Decisions
 
 HERE = Path(__file__).resolve().parent
 CARD = yaml.safe_load((HERE / "card.yaml").read_text())
+
+PEERS = {"Waiter": os.environ["WAITER_URL"]} if "WAITER_URL" in os.environ else None
 
 TABLE_NUMBER = 5
 SUBJECT = "the wild mushroom risotto"
@@ -56,8 +69,9 @@ def _card_route() -> dict:
 
 
 if __name__ == "__main__":
+    configure()                        # OTLP tracing/metrics/logs — see papeete-observability
     decisions = Decisions()
-    mailbox = HttpMailbox(routes={"/order": _trigger_order, "/card": _card_route})
+    mailbox = HttpMailbox(routes={"/order": _trigger_order, "/card": _card_route}, peers=PEERS)
     actor = Actor.from_card(
         HERE, mailbox=mailbox,
         actions={"confirm-substitution": decisions.confirm_substitution},

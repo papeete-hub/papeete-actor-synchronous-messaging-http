@@ -182,12 +182,20 @@ External reachability (through the ingress, not just cluster-internal DNS) needs
 port-forward on this cluster, since `ingress-nginx-controller`'s Service here is `ClusterIP`
 only:
 
+**Each actor's own `ingress.yaml` names only its bare, actor-local path** (`/customer/api(/|$)
+(.*)`) — no product, no environment. `papeete-deploy` >= 0.3.0 generates the
+`/<product>/<environment.name>/` prefix and injects it at apply time
+([`ADR-PD-0005`](https://github.com/papeete-hub/papeete-deploy)), so the actual externally-reachable
+path is the actor's own segment prefixed with this product's name and the k8s namespace it landed
+in (`environment.name` in `productK8s.yaml`) — for `deterministic/`, product `pash-table-service`,
+namespace `papeete-actor-synchronous-messaging-http-example`:
+
 ```bash
 kubectl -n ingress-nginx port-forward svc/ingress-nginx-controller 18080:80 &
-curl http://localhost:18080/develop/customer/api/order
-curl http://localhost:18080/develop/waiter/api/card          # or /develop/customer/api/card
-curl http://localhost:18080/develop/buyer/api/claim
-curl http://localhost:18080/develop/delivery-person/api/card
+curl http://localhost:18080/pash-table-service/papeete-actor-synchronous-messaging-http-example/customer/api/order
+curl http://localhost:18080/pash-table-service/papeete-actor-synchronous-messaging-http-example/waiter/api/card   # or .../customer/api/card
+curl http://localhost:18080/pash-delivery-claims/papeete-actor-synchronous-messaging-http-example-llm-judged/buyer/api/claim
+curl http://localhost:18080/pash-delivery-claims/papeete-actor-synchronous-messaging-http-example-llm-judged/delivery-person/api/card
 ```
 
 The response to `/order` (`deterministic/`) names a real accepted request at the Waiter's

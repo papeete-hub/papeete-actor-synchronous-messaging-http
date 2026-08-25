@@ -11,7 +11,7 @@ spec:
   rules:
     - http:
         paths:
-          - path: /develop/buyer/api(/|$)(.*)
+          - path: /buyer/api(/|$)(.*)
             pathType: ImplementationSpecific
             backend:
               service:

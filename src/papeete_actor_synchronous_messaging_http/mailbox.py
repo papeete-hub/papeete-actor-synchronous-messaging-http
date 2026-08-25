@@ -35,12 +35,16 @@ known string sits (a URL segment, not a JSON field) has changed.
 from __future__ import annotations
 
 import json
+import logging
+import time
 import urllib.error
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Callable
 
 from papeete_actor_synchronous_messaging.actor import Refusal
+
+from . import _tracing
 
 PORT = 8080
 HEALTH_PATH = "/health"
@@ -113,22 +117,45 @@ class HttpMailbox:
         SENDS is never addressed to itself, so outbound and inbound never share state beyond the
         socket. `to` does not need to travel on the wire either: the receiving process only ever
         answers for the one actor it registered.
+
+        Wrapped in a CLIENT span, propagated via `_tracing.inject()` (W3C `traceparent`) so the
+        answering process's own SERVER span (see `Handler.do_POST`) parents under it — and one
+        `door_calls_total`/`door_latency_seconds` metric tick, `outcome` one of `accepted`
+        (a reply came back), `refused` (the peer raised a `Refusal`, carried as an HTTP 400) or
+        `error` (unreachable / not a clean HTTP exchange).
         """
         url = self._base_url(to) + "/" + door
         body = json.dumps({"from": from_, "payload": payload}).encode()
-        request = urllib.request.Request(
-            url, data=body, method="POST",
-            headers={"Content-Type": "application/json"},
-        )
+        start, outcome = time.monotonic(), "error"
         try:
-            with urllib.request.urlopen(request, timeout=10) as response:
-                return json.loads(response.read())
-        except urllib.error.HTTPError as e:
-            raise DeliveryError(
-                f"'{to}' at {url} refused this call ({e.code}): {e.read().decode()}"
-            ) from e
-        except (urllib.error.URLError, ConnectionError, TimeoutError) as e:
-            raise DeliveryError(f"no actor reachable at '{to}' ({url}): {e}") from e
+            with _tracing.span(f"deliver {door}", _tracing.CLIENT,
+                               {"door": door, "verb": verb, "to": to}):
+                # `inject()` MUST run inside the span's own `with` block — it reads the
+                # CURRENTLY ACTIVE span out of context to build `traceparent`; called before
+                # `start_as_current_span` returns, there is no active span yet and the header
+                # carries nothing (or a stale ambient one), silently breaking parent/child
+                # propagation across the wire. Caught by the real end-to-end check (Tempo
+                # showing two disconnected trace ids instead of one), not by any unit test —
+                # `test_http_mailbox.py`/`test_deterministic_conversation.py` run with
+                # `opentelemetry-api` absent, where this ordering is a no-op either way.
+                headers = _tracing.inject({"Content-Type": "application/json"})
+                request = urllib.request.Request(url, data=body, method="POST", headers=headers)
+                try:
+                    with urllib.request.urlopen(request, timeout=10) as response:
+                        reply = json.loads(response.read())
+                except urllib.error.HTTPError as e:
+                    outcome = "refused"
+                    raise DeliveryError(
+                        f"'{to}' at {url} refused this call ({e.code}): {e.read().decode()}"
+                    ) from e
+                except (urllib.error.URLError, ConnectionError, TimeoutError) as e:
+                    raise DeliveryError(f"no actor reachable at '{to}' ({url}): {e}") from e
+                outcome = "accepted"
+                return reply
+        finally:
+            logging.info("deliver door=%s verb=%s to=%s outcome=%s", door, verb, to, outcome)
+            _tracing.record(door=door, verb=verb, outcome=outcome,
+                            elapsed=time.monotonic() - start)
 
     def serve_forever(self) -> None:
         """**Inbound.** Block, answering each of the registered actor's own door routes with
@@ -168,15 +195,31 @@ class HttpMailbox:
                 except json.JSONDecodeError:
                     return self._reply(400, {"error": "body is not valid JSON"})
 
+                # SERVER span, parented on whatever traceparent deliver() injected (or none, if
+                # this call didn't come from another papeete actor) — one metric tick per call,
+                # outcome one of `accepted`, `refused` (a Refusal) or `error` (anything else).
+                door = self.path[1:]
+                ctx = _tracing.extract(self.headers)
+                start, outcome = time.monotonic(), "error"
                 try:
-                    reply = actor.receive(verb=verb, door=self.path[1:],
-                                          payload=body.get("payload") or {},
-                                          from_=body.get("from"))
-                except Refusal as e:
-                    # REFUSE, NEVER REPAIR — carried across the wire rather than swallowed.
-                    # The sender's own `deliver()` turns this back into a `DeliveryError`.
-                    return self._reply(400, {"error": str(e)})
-                self._reply(200, reply)
+                    with _tracing.span(door, _tracing.SERVER, {"door": door, "verb": verb},
+                                       context=ctx):
+                        try:
+                            reply = actor.receive(verb=verb, door=door,
+                                                  payload=body.get("payload") or {},
+                                                  from_=body.get("from"))
+                        except Refusal as e:
+                            # REFUSE, NEVER REPAIR — carried across the wire rather than
+                            # swallowed. The sender's own `deliver()` turns this back into a
+                            # `DeliveryError`.
+                            outcome = "refused"
+                            return self._reply(400, {"error": str(e)})
+                        outcome = "accepted"
+                        self._reply(200, reply)
+                finally:
+                    logging.info("do_POST door=%s verb=%s outcome=%s", door, verb, outcome)
+                    _tracing.record(door=door, verb=verb, outcome=outcome,
+                                    elapsed=time.monotonic() - start)
 
             def _reply(self, status: int, body: dict) -> None:
                 payload = json.dumps(body).encode()

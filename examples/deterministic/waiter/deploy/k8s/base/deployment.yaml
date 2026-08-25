@@ -19,6 +19,17 @@ spec:
           image: waiter
           ports:
             - containerPort: 8080
+          env:
+            - name: OTEL_SERVICE_NAME
+              value: waiter
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: http://otel-collector.observability.svc.cluster.local:4317
+            # ADR-PD-0004 (papeete-deploy >= 0.2.0): every k8s object it applies is renamed
+            # with a product-scoped prefix — the Customer's own Service is
+            # `pash-table-service-customer`, not `customer`, so HttpMailbox's own name-is-hostname
+            # convention needs an override (see app.py's own docstring).
+            - name: CUSTOMER_URL
+              value: http://pash-table-service-customer:8080
           readinessProbe:
             httpGet:
               path: /health

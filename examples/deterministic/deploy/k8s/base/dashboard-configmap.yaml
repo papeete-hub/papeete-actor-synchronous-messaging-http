@@ -1,0 +1,115 @@
+# The pash-table-service product's own Grafana dashboard — both actors (customer, waiter) together,
+# with a `$actor` template variable driving the drill-down between them. Lives here, not inside
+# either actor's own deploy/k8s/, because the dashboard describes the PRODUCT as a whole: tearing
+# down one actor must not take the dashboard with it, and duplicating this ConfigMap into both
+# actors' overlays would re-introduce the shared-registry duplication this repo's own
+# ADR-PASH-0002 already tore out once, for a different reason.
+#
+# `grafana_dashboard`/`grafana_folder` are the sidecar-watch convention papeete-platform's own
+# Grafana `helm_release` opts into (`sidecar.dashboards`, cluster-wide `searchNamespace: ALL`) —
+# this ConfigMap is inert without that platform-side change; see papeete-platform's own
+# modules/observability. `papeete-deploy`'s `namePrefix` (ADR-PD-0004) renames this object to
+# `pash-table-service-dashboard` on apply — `commonLabels` (`papeete-deploy/product: pash-table-service`)
+# is untouched by that rename, but grafana_dashboard/grafana_folder are plain labels/annotations,
+# not commonLabels, so they cross unmodified.
+#
+# Metric/log/trace field names below are NOT guessed — each was read back from the real cluster
+# (Prometheus, Loki, Tempo) during this product's own observability verification:
+#   - `exported_job` (not `job`): the OTel Collector's own Prometheus exporter relabels the
+#     original job into `exported_job` when scraped by Prometheus's own `job=otel-collector`.
+#   - `service_name` (Loki label) and `resource.service.name` (Tempo TraceQL): both read
+#     directly off real query results against the deployed customer/waiter pair.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dashboard
+  labels:
+    grafana_dashboard: "1"
+  annotations:
+    grafana_folder: pash-table-service
+data:
+  pash-table-service.json: |
+    {
+      "title": "pash-table-service",
+      "uid": "pash-table-service",
+      "timezone": "browser",
+      "editable": true,
+      "templating": {
+        "list": [
+          {
+            "name": "actor",
+            "type": "query",
+            "datasource": "Prometheus",
+            "query": "label_values(door_calls_total, exported_job)",
+            "refresh": 2,
+            "includeAll": false,
+            "multi": false
+          }
+        ]
+      },
+      "panels": [
+        {
+          "id": 1,
+          "title": "calls/min by actor — click a bar to drill in",
+          "type": "barchart",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 7, "w": 24, "x": 0, "y": 0 },
+          "targets": [
+            {
+              "datasource": "Prometheus",
+              "expr": "sum by (exported_job, outcome) (rate(door_calls_total{exported_job=~\"customer|waiter\"}[5m]))",
+              "legendFormat": "{{exported_job}} / {{outcome}}"
+            }
+          ],
+          "options": {
+            "dataLinks": [
+              {
+                "title": "drill into ${__field.labels.exported_job}",
+                "url": "/d/pash-table-service?var-actor=${__field.labels.exported_job}"
+              }
+            ]
+          }
+        },
+        {
+          "id": 2,
+          "title": "$actor — p95 door latency",
+          "type": "timeseries",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 7, "w": 12, "x": 0, "y": 7 },
+          "targets": [
+            {
+              "datasource": "Prometheus",
+              "expr": "histogram_quantile(0.95, sum by (le) (rate(door_latency_seconds_bucket{exported_job=\"$actor\"}[5m])))",
+              "legendFormat": "p95"
+            }
+          ]
+        },
+        {
+          "id": 3,
+          "title": "$actor — logs",
+          "type": "logs",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "gridPos": { "h": 7, "w": 12, "x": 12, "y": 7 },
+          "targets": [
+            {
+              "datasource": { "type": "loki", "uid": "loki" },
+              "expr": "{service_name=\"$actor\"}"
+            }
+          ]
+        },
+        {
+          "id": 4,
+          "title": "$actor — traces",
+          "type": "traces",
+          "datasource": { "type": "tempo", "uid": "tempo" },
+          "gridPos": { "h": 9, "w": 24, "x": 0, "y": 14 },
+          "targets": [
+            {
+              "datasource": { "type": "tempo", "uid": "tempo" },
+              "queryType": "traceql",
+              "query": "{resource.service.name=\"$actor\"}"
+            }
+          ]
+        }
+      ]
+    }

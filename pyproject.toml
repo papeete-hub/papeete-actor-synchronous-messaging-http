@@ -14,16 +14,24 @@ classifiers = [
   "Topic :: Software Development :: Libraries :: Application Frameworks",
 ]
 
-# ONE DEPENDENCY. `Mailbox` (mailbox.py, this package's whole surface) implements the port
-# `papeete-actor-synchronous-messaging` already declares (`Mailbox` in its own `mailbox.py`) —
-# nothing here re-authors the membrane, the card contract, or `Actor` itself. Stdlib only
-# beyond that: `http.server` and `urllib.request`, the same choice every small HTTP actor in
-# this ecosystem already makes (`papeete-actor`'s `car-inspector`, `papeete-deploy`'s own
-# customer/waiter demo) — no framework to keep current, no framework to explain to a reader.
+# ONE *REQUIRED* DEPENDENCY. `Mailbox` (mailbox.py, this package's whole surface) implements
+# the port `papeete-actor-synchronous-messaging` already declares (`Mailbox` in its own
+# `mailbox.py`) — nothing here re-authors the membrane, the card contract, or `Actor` itself.
+# Stdlib only beyond that: `http.server` and `urllib.request`, the same choice every small HTTP
+# actor in this ecosystem already makes (`papeete-actor`'s `car-inspector`, `papeete-deploy`'s
+# own customer/waiter demo) — no framework to keep current, no framework to explain to a reader.
+# The `[otel]` extra below is the one deliberate exception: optional, lazily imported at every
+# call site in `_tracing.py` (mirroring `Engine.resolve()`'s own lazy-import discipline for
+# vendor adapters), a true no-op when absent.
 dependencies = ["papeete-actor-synchronous-messaging>=0.2.1"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]
+# `opentelemetry-sdk` is deliberately NOT here — this package only ever calls the OTel *API*
+# (`trace.get_tracer()`, `propagate.inject/extract()`), which is a genuine no-op with no SDK
+# configured. Wiring an actual `TracerProvider`/exporter is `papeete-observability`'s job
+# (a sibling repo), pulled in by whoever assembles a deployable actor, not by this binding.
+otel = ["opentelemetry-api>=1.27"]
 
 [tool.uv.sources]
 # `papeete-actor-synchronous-messaging` is now on PyPI (0.2.1), but this checkout still points
