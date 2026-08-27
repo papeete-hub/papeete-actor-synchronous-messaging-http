@@ -1,6 +1,6 @@
 [project]
 name = "papeete-actor-synchronous-messaging-http"
-version = "0.2.0"
+version = "0.3.0"
 description = "An HTTP binding for papeete-actor-synchronous-messaging — a Mailbox adapter, deployable as a real service."
 readme = "README.md"
 requires-python = ">=3.11"
