@@ -23,6 +23,15 @@ reachable address for free; this binding leans on that rather than building a se
 `peers` exists only to override that convention for a test or a non-cluster deployment — see
 its own docstring.
 
+EVERY INBOUND CALL IS OBSERVABLE, INCLUDING THE ONES NO DOOR ANSWERS (ADR-PASH-0005). `do_POST`
+opens its `SERVER` span, parented on whatever `traceparent` the caller sent, BEFORE it routes the
+path or reads the body — and logs and meters exactly one line per call, from inside that span. So
+an undeclared door and a malformed body are outcomes of their own (`no-route`, `bad-request`)
+rather than early returns that produced no span, no metric and no log record at all; and every
+record any code emits while answering a call — this module's own access line included — sits
+inside a span whose trace id is the caller's, which is what lets a consumer's own logging stamp a
+correlation id onto records this binding refused before any handler could bind one.
+
 DISCOVERY OF DOORS STAYS STATIC, deliberately, exactly as the core package's own `Actor` and
 `Card` document it: a peer learns what another ships by reading its card, never by asking it —
 there is no door for "what are your doors". So there is no `GET /card` here, on purpose — adding
@@ -48,6 +57,10 @@ from . import _tracing
 
 PORT = 8080
 HEALTH_PATH = "/health"
+# What stands in for the verb when no door matched the path — there IS no verb in that case, and
+# a metric attribute this binding invented is more honest as a visible placeholder than as an
+# empty string a query would silently treat as "missing label".
+NO_VERB = "-"
 
 
 class DeliveryError(RuntimeError):
@@ -183,43 +196,74 @@ class HttpMailbox:
                     return self._reply(200, {"status": "ok"})
                 if self.path in routes:
                     return self._reply(200, routes[self.path]())
+                # Deliberately the ONE inbound call this binding does not span or meter, but it
+                # does say so: `/health` is a readiness probe firing every few seconds, and a
+                # span per probe would bury every real call in a deployment's own traces. A GET
+                # to anything else is a caller getting an address wrong, which is worth a line.
+                logging.warning("do_GET path=%s outcome=no-route", self.path)
                 self._reply(404, {"error": f"no route {self.path}"})
 
             def do_POST(self) -> None:                              # noqa: N802 — stdlib name
+                """One span, one metric tick and one log line per call — ADR-PASH-0005.
+
+                The span opens BEFORE the path is routed and BEFORE the body is read, which is
+                the whole of the decision: an undeclared door and an unparseable body are
+                things that happened TO this actor, and they used to return early, leaving a
+                call that produced no span, no metric and no log record whatsoever —
+                indistinguishable, from the outside, from a call that never arrived at all.
+
+                `outcome` is one of `no-route` (nothing answers this path), `bad-request` (the
+                body is not JSON), `refused` (the actor raised a `Refusal` — an undeclared
+                door, a payload its `request_schema` rejects, a handler that failed),
+                `accepted`, or `error` (anything `_dispatch` raised that is none of those).
+
+                The log line and the metric sit INSIDE the span, not in a `finally` outside it,
+                so they carry the caller's own trace context — a consumer stamping a
+                correlation id onto its records from the active span (see
+                `papeete-observability`) reaches even the calls refused before any handler of
+                its own could run.
+                """
+                door = self.path[1:]
                 verb = doors.get(self.path)
+                with _tracing.span(door or self.path, _tracing.SERVER,
+                                   {"door": door, "verb": verb or ""},
+                                   context=_tracing.extract(self.headers)):
+                    start, outcome = time.monotonic(), "error"
+                    try:
+                        outcome = self._dispatch(door, verb)
+                    finally:
+                        logging.info("do_POST door=%s verb=%s outcome=%s",
+                                     door, verb or NO_VERB, outcome)
+                        _tracing.record(door=door, verb=verb or NO_VERB, outcome=outcome,
+                                        elapsed=time.monotonic() - start)
+
+            def _dispatch(self, door: str, verb: str | None) -> str:
+                """Answer the call, and name its outcome. Never logs and never meters — that is
+                `do_POST`'s single place to do both, on every path out of here including the
+                exceptional one."""
                 if verb is None:
-                    return self._reply(404, {"error": f"no route {self.path}"})
+                    self._reply(404, {"error": f"no route {self.path}"})
+                    return "no-route"
+
                 length = int(self.headers.get("Content-Length", 0))
                 try:
                     body = json.loads(self.rfile.read(length) or b"{}")
                 except json.JSONDecodeError:
-                    return self._reply(400, {"error": "body is not valid JSON"})
+                    self._reply(400, {"error": "body is not valid JSON"})
+                    return "bad-request"
 
-                # SERVER span, parented on whatever traceparent deliver() injected (or none, if
-                # this call didn't come from another papeete actor) — one metric tick per call,
-                # outcome one of `accepted`, `refused` (a Refusal) or `error` (anything else).
-                door = self.path[1:]
-                ctx = _tracing.extract(self.headers)
-                start, outcome = time.monotonic(), "error"
                 try:
-                    with _tracing.span(door, _tracing.SERVER, {"door": door, "verb": verb},
-                                       context=ctx):
-                        try:
-                            reply = actor.receive(verb=verb, door=door,
-                                                  payload=body.get("payload") or {},
-                                                  from_=body.get("from"))
-                        except Refusal as e:
-                            # REFUSE, NEVER REPAIR — carried across the wire rather than
-                            # swallowed. The sender's own `deliver()` turns this back into a
-                            # `DeliveryError`.
-                            outcome = "refused"
-                            return self._reply(400, {"error": str(e)})
-                        outcome = "accepted"
-                        self._reply(200, reply)
-                finally:
-                    logging.info("do_POST door=%s verb=%s outcome=%s", door, verb, outcome)
-                    _tracing.record(door=door, verb=verb, outcome=outcome,
-                                    elapsed=time.monotonic() - start)
+                    reply = actor.receive(verb=verb, door=door,
+                                          payload=body.get("payload") or {},
+                                          from_=body.get("from"))
+                except Refusal as e:
+                    # REFUSE, NEVER REPAIR — carried across the wire rather than swallowed. The
+                    # sender's own `deliver()` turns this back into a `DeliveryError`.
+                    self._reply(400, {"error": str(e)})
+                    return "refused"
+
+                self._reply(200, reply)
+                return "accepted"
 
             def _reply(self, status: int, body: dict) -> None:
                 payload = json.dumps(body).encode()

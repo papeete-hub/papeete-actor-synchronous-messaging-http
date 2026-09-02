@@ -15,3 +15,4 @@ at a pin and never re-authors them.
 | [ADR-PASH-0002](./ADR-PASH-0002-follow-the-core-packages-back-to-basics-reset.md) | Follow the core package's back-to-basics reset — no envelope, no baked-in coupling registry | Accepted |
 | [ADR-PASH-0003](./ADR-PASH-0003-a-static-baked-card-route-is-not-the-door-adr-pash-0001-rejected.md) | A static, build-time-baked GET /card is not the door ADR-PASH-0001 rejected | Accepted |
 | [ADR-PASH-0004](./ADR-PASH-0004-one-http-route-per-door-not-one-generic-receive.md) | One HTTP route per door, not one generic /receive — the wire speaks business, not dispatch | Accepted (partially supersedes ADR-PASH-0002's wire shape) |
+| [ADR-PASH-0005](./ADR-PASH-0005-every-inbound-call-is-observable-including-the-ones-no-door-answers.md) | Every inbound call is observable, including the ones no door answers | Accepted |
